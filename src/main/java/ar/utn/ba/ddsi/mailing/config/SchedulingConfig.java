@@ -15,6 +15,6 @@ public class SchedulingConfig implements SchedulingConfigurer {
     }
 
     private Executor taskExecutor() {
-        return Executors.newScheduledThreadPool(3); // Pool de 3 hilos para nuestras tareas
+        return Executors.newScheduledThreadPool(3); 
     }
 } 

@@ -12,12 +12,13 @@ public class ClimaScheduler {
     private final IClimaService  climaService;
 
     public ClimaScheduler(IClimaService climaService) {
+
         this.climaService = climaService;
     }
 
     @Scheduled(fixedRate = 300000) // 300000 ms = 5 minutos
     public void actualizarClima() {
-        climaService.actualizarClimaCiudades()
+        climaService.actualizarClima()
             .doOnSuccess(v -> logger.info("Actualización de clima completada"))
             .doOnError(e -> logger.error("Error en la actualización de clima: {}", e.getMessage()))
             .subscribe();

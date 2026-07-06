@@ -4,6 +4,7 @@ import ar.utn.ba.ddsi.mailing.models.entities.Clima;
 import ar.utn.ba.ddsi.mailing.models.entities.Email;
 import ar.utn.ba.ddsi.mailing.models.repositories.IClimaRepository;
 import ar.utn.ba.ddsi.mailing.services.IAlertasService;
+import ar.utn.ba.ddsi.mailing.services.IEmailService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,15 +20,15 @@ public class AlertasService implements IAlertasService {
     private static final int HUMEDAD_ALERTA = 60;
 
     private final IClimaRepository climaRepository;
-    private final EmailService emailService;
+    private final IEmailService emailService;
     private final String remitente;
     private final List<String> destinatarios;
 
     public AlertasService(
-            IClimaRepository climaRepository, 
-            EmailService emailService,
-            @Value("${email.alertas.remitente}") String remitente,
-            @Value("${email.alertas.destinatarios}") String destinatarios) {
+        IClimaRepository climaRepository,
+        IEmailService emailService,
+        @Value("${email.alertas.remitente}") String remitente,
+        @Value("${email.alertas.destinatarios}") String destinatarios) {
         this.climaRepository = climaRepository;
         this.emailService = emailService;
         this.remitente = remitente;
@@ -38,20 +39,20 @@ public class AlertasService implements IAlertasService {
     public Mono<Void> generarAlertasYAvisar() {
         return Mono.fromCallable(() -> climaRepository.findByProcesado(false))
             .flatMap(climas -> {
-                logger.info("Procesando {} registros de clima no procesados", climas.size());
-                return Mono.just(climas);
-            })
-            .flatMap(climas -> {
+                if (!climas.isEmpty()) {
+                    logger.info("Procesando {} registros de clima nuevos", climas.size());
+                }
+
                 climas.stream()
                     .filter(this::cumpleCondicionesAlerta)
                     .forEach(this::generarYEnviarEmail);
-                
-                // Marcar todos como procesados
+
+
                 climas.forEach(clima -> {
-                    clima.setProcesado(true);
+                    clima.setProcesado(true); //Para evitar mandar la alerta de forma repetitiva
                     climaRepository.save(clima);
                 });
-                
+
                 return Mono.empty();
             })
             .onErrorResume(e -> {
@@ -62,20 +63,19 @@ public class AlertasService implements IAlertasService {
     }
 
     private boolean cumpleCondicionesAlerta(Clima clima) {
-        //TODO: podríamos refactorizar el diseño para que no sea un simple método, pues puede ser más complejo
-        return clima.getTemperaturaCelsius() > TEMPERATURA_ALERTA && 
-               clima.getHumedad() > HUMEDAD_ALERTA;
+        return clima.getTemperaturaCelsius() > TEMPERATURA_ALERTA &&
+            clima.getHumedad() > HUMEDAD_ALERTA;
     }
 
     private void generarYEnviarEmail(Clima clima) {
         String asunto = "Alerta de Clima - Condiciones Extremas";
         String mensaje = String.format(
             "ALERTA: Condiciones climáticas extremas detectadas en %s\n\n" +
-            "Temperatura: %.1f°C\n" +
-            "Humedad: %d%%\n" +
-            "Condición: %s\n" +
-            "Velocidad del viento: %.1f km/h\n\n" +
-            "Se recomienda tomar precauciones.",
+                "Temperatura: %.1f°C\n" +
+                "Humedad: %d%%\n" +
+                "Condición: %s\n" +
+                "Velocidad del viento: %.1f km/h\n\n" +
+                "Se recomienda tomar precauciones.",
             clima.getCiudad(),
             clima.getTemperaturaCelsius(),
             clima.getHumedad(),
@@ -87,8 +87,7 @@ public class AlertasService implements IAlertasService {
             Email email = new Email(destinatario, remitente, asunto, mensaje);
             emailService.crearEmail(email);
         }
-        
-        logger.info("Email de alerta generado para {} - Enviado a {} destinatarios", 
-            clima.getCiudad(), destinatarios.size());
+
+        logger.warn("¡ALERTA CLIMÁTICA DETECTADA! Correos generados para {} destinatarios", destinatarios.size());
     }
-} 
+}
