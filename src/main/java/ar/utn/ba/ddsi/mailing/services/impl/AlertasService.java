@@ -17,7 +17,9 @@ import java.util.List;
 public class AlertasService implements IAlertasService {
     private static final Logger logger = LoggerFactory.getLogger(AlertasService.class);
     private static final double TEMPERATURA_ALERTA = 35.0;
+        //1.0; Lo usé para testear
     private static final int HUMEDAD_ALERTA = 60;
+            //10; Usado para testear
 
     private final IClimaRepository climaRepository;
     private final IEmailService emailService;
